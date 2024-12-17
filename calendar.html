@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>食事記録カレンダー</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 20px;
+            background-color: #fef9e7;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #ff6f61;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        h2 {
+            text-align: center;
+            font-size: 1.5em;
+            margin-top: -10px;
+            color: #ff8c42;
+        }
+        .month-nav {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .month-nav button {
+            background-color: #ff6f61;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 0 5px;
+            font-size: 1em;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .month-nav button:hover {
+            background-color: #ff8c42;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 15px;
+            text-align: center;
+            font-size: 0.9em;
+        }
+        th {
+            background-color: #ff6f61;
+            color: white;
+        }
+        td {
+            border: 1px solid #f5d5cb;
+        }
+        td.empty {
+            background-color: #fef9e7;
+            border: none;
+        }
+        td.today {
+            background-color: #fff5f1;
+            border: 2px solid #ff6f61;
+            font-weight: bold;
+        }
+        .food-list {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 5px;
+        }
+        .food-list span {
+            font-weight: bold;
+            color: #ff8c42;
+        }
+        #memoModal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fff;
+            border: 2px solid #ff6f61;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        #memoModal h3 {
+            margin-bottom: 10px;
+            color: #ff6f61;
+        }
+        #memoText {
+            width: 100%;
+            height: 100px;
+            margin-bottom: 10px;
+            padding: 10px;
+            font-size: 1em;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        #memoModal button {
+            background-color: #ff6f61;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1em;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #memoModal button:hover {
+            background-color: #ff8c42;
+        }
+        #memoModal button:last-child {
+            background-color: #ccc;
+            margin-left: 10px;
+        }
+        * {
+    -webkit-box-sizing: border-box;
+    -ms-box-sizing: border-box;
+    -o-box-sizing: border-box;
+    box-sizing: border-box;
+  }
+  *:before, *:after {
+    -webkit-box-sizing: border-box;
+    -ms-box-sizing: border-box;
+    -o-box-sizing: border-box;
+    box-sizing: border-box;
+  }
+  
+  a{
+    &.btn {
+      color: #fff;
+      display: inline-block;
+      width: 160px;
+      height: 60px;
+      position: relative;
+      background: #000;
+      transition: .3s;
+      &::before{
+        content:"";
+        position: absolute;
+        background-color: #000;
+        top:0;
+        left: 0;
+        width: 0;
+        height: 2px;
+        transition: all .5s ease-out;
+      }
+      &::after{
+        content:"";
+        position: absolute;
+        background-color: #000;
+        bottom: 0;
+        right: 0;
+        width: 0;
+        height: 2px;
+        transition: all .5s ease-out;
+      }
+      >span{
+        display: block;
+        width: 100%;
+        height: 100%;
+        position: relative;
+        &::before{
+          content:"";
+          position: absolute;
+          background-color: #000;
+          top:0;
+          left: 0;
+          width: 2px;
+          height: 0;
+          transition: all .5s ease-out;
+        }
+        &::after{
+          content:"";
+          position: absolute;
+          background-color: #000;
+          bottom: 0;
+          right: 0;
+          width: 2px;
+          height: 0;
+          transition: all .4s ease-out;
+        }
+        >span{
+          display: inline-block;
+          position: absolute;
+          width: 100%;
+          text-align: center;
+          top:50%;
+          transform: translateY(-50%);
+        }
+      }
+      &:hover{
+        color: #000;
+        background: #fff;
+        &::before,
+        &::after{
+          width: 100%;
+        }
+        >span{
+          &::before,
+          &::after{
+            height: 100%;
+          } 
+        }
+      }
+    }
+  }
+    </style>
+</head>
+<body>
+    <h1>食事記録カレンダー</h1>
+    <h2 id="monthTitle"></h2>
+
+    <!-- 月切り替えボタン -->
+    <div class="month-nav">
+        <button onclick="changeMonth(-1)">前の月</button>
+        <button onclick="changeMonth(1)">次の月</button>
+    </div>
+
+    <div id="calendar"></div>
+
+    <!-- メモ入力モーダル -->
+    <div id="memoModal">
+        <h3 id="memoDateTitle">日付: </h3>
+        <textarea id="memoText"></textarea>
+        <button onclick="saveMemo()">保存</button>
+        <button onclick="closeMemoModal()">閉じる</button>
+    </div>
+
+    <a href="index.html" class="btn"><span><span>戻る</span></span></a>
+
+    <script>
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth(); // 現在の月（0ベース）
+        let memos = JSON.parse(localStorage.getItem('memos')) || {}; // メモを保存するオブジェクト
+
+        // URLパラメータからデータを取得
+        function getMealsFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            const data = params.get("data");
+            return data ? JSON.parse(decodeURIComponent(data)) : [];
+        }
+
+        // 現在の月と年を取得して表示
+        function setMonthTitle(year, month) {
+            const monthNames = [
+                "1月", "2月", "3月", "4月", "5月", "6月", 
+                "7月", "8月", "9月", "10月", "11月", "12月"
+            ];
+            document.getElementById("monthTitle").innerText = `${year}年 ${monthNames[month]}`;
+        }
+
+        // UTCに変換せずローカルの日付を正確に扱う
+        function formatDateToISO(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // カレンダーを生成
+        function generateCalendar(meals, year, month) {
+            const calendarDiv = document.getElementById("calendar");
+
+            // 今日の日付
+            const today = formatDateToISO(new Date());
+
+            // 月の最初の日と最後の日
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+
+            // カレンダー構造
+            let calendarHtml = `<table><thead><tr>`;
+            const daysOfWeek = ["日", "月", "火", "水", "木", "金", "土"];
+            daysOfWeek.forEach(day => {
+                calendarHtml += `<th>${day}</th>`;
+            });
+            calendarHtml += `</tr></thead><tbody><tr>`;
+
+            // 空白のセルを追加
+            for (let i = 0; i < firstDay.getDay(); i++) {
+                calendarHtml += `<td class="empty"></td>`;
+            }
+
+            // 日付を埋める
+            for (let date = 1; date <= lastDay.getDate(); date++) {
+                const currentDate = formatDateToISO(new Date(year, month, date));
+                const mealList = meals
+                    .filter(meal => meal.date === currentDate)
+                    .map(meal => `<div class="food-list"><span>${meal.mealType}</span>: ${meal.food}</div>`)
+                    .join("");
+                const memo = memos[currentDate] ? `<div style="margin-top: 5px; font-size: 0.8em; color: #333;">📝 ${memos[currentDate]}</div>` : '';
+                const isToday = currentDate === today ? "today" : "";
+
+                calendarHtml += `<td class="${isToday}" onclick="openMemoModal('${currentDate}')">${date}${mealList}${memo}</td>`;
+
+                // 行の終了
+                if (new Date(year, month, date).getDay() === 6 && date !== lastDay.getDate()) {
+                    calendarHtml += `</tr><tr>`;
+                }
+            }
+
+            // 空白のセルを追加
+            for (let i = lastDay.getDay() + 1; i <= 6; i++) {
+                calendarHtml += `<td class="empty"></td>`;
+            }
+
+            calendarHtml += `</tr></tbody></table>`;
+            calendarDiv.innerHTML = calendarHtml;
+
+            // 現在の月と年を表示
+            setMonthTitle(year, month);
+        }
+
+        // メモのモーダルを開く
+        function openMemoModal(date) {
+            document.getElementById('memoModal').style.display = 'block';
+            document.getElementById('memoDateTitle').innerText = `日付: ${date}`;
+            document.getElementById('memoText').value = memos[date] || '';
+            document.getElementById('memoModal').dataset.date = date;
+        }
+
+        // メモのモーダルを閉じる
+        function closeMemoModal() {
+            document.getElementById('memoModal').style.display = 'none';
+        }
+
+        // メモを保存
+        function saveMemo() {
+            const date = document.getElementById('memoModal').dataset.date;
+            const memoText = document.getElementById('memoText').value;
+            if (memoText) {
+                memos[date] = memoText;
+            } else {
+                delete memos[date]; // 空の場合は削除
+            }
+            localStorage.setItem('memos', JSON.stringify(memos));
+            closeMemoModal();
+            generateCalendar(meals, currentYear, currentMonth); // カレンダーを再生成してメモを反映
+        }
+
+        // 月を変更する関数
+        function changeMonth(offset) {
+            currentMonth += offset;
+
+            if (currentMonth < 0) {
+                currentMonth = 11; // 12月
+                currentYear -= 1; // 前の年
+            } else if (currentMonth > 11) {
+                currentMonth = 0; // 1月
+                currentYear += 1; // 次の年
+            }
+
+            generateCalendar(meals, currentYear, currentMonth);
+        }
+
+        // メイン処理
+        const meals = getMealsFromUrl();
+        generateCalendar(meals, currentYear, currentMonth);
+    </script>
+</body>
+</html>

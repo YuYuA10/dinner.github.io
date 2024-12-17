@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>食事記録システム</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f9f9f9;
+        }
+        h1, h2 {
+            text-align: center;
+        }
+        form, #searchForm {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        input, select, button {
+            margin-bottom: 10px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 100%;
+        }
+        button {
+            background-color: #4CAF50;
+            color: #fff;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .sortable {
+            cursor: pointer;
+            color: #007bff;
+            text-decoration: underline;
+        }
+        .sortable:hover {
+            color: #0056b3;
+        }
+        .delete-btn, .edit-btn {
+            background-color: #ff4d4d;
+            color: #fff;
+            cursor: pointer;
+        }
+        .edit-btn {
+            background-color: #2196F3;
+        }
+        #counts {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+        }
+        .count-card {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .count-card h3 {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            color: #555;
+        }
+        .count-card span {
+            font-size: 2.5em;
+            color: #333;
+            font-weight: bold;
+        }
+        .count-card:nth-child(1) span {
+            color: #4CAF50;
+        }
+        .count-card:nth-child(2) span {
+            color: #FF5722;
+        }
+        .count-card:nth-child(3) span {
+            color: #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <h1>食事記録システム</h1>
+
+    <!-- 入力フォーム -->
+    <form id="mealForm">
+        <label for="date">日付</label>
+        <input type="date" id="date" required>
+        
+        <label for="mealType">自炊・外食・学食</label>
+        <select id="mealType" required>
+            <option value="">選択してください</option>
+            <option value="自炊">自炊</option>
+            <option value="外食">外食</option>
+            <option value="学食">学食</option>
+        </select>
+
+        <label for="mealTime">昼食・夜食</label>
+        <select id="mealTime" required>
+            <option value="">選択してください</option>
+            <option value="昼食">昼食</option>
+            <option value="夜食">夜食</option>
+        </select>
+
+        <label for="food">食べたもの</label>
+        <input type="text" id="food" placeholder="例: ラーメン" required>
+        
+        <button type="button" onclick="addOrUpdateMeal()" id="submitBtn">追加</button>
+    </form>
+
+    <!-- 検索フォーム -->
+    <form id="searchForm">
+        <label for="search">検索</label>
+        <input type="text" id="search" placeholder="例: ラーメン、自炊" oninput="searchMeals()">
+    </form>
+
+    <!-- 記録一覧 -->
+    <h2>記録一覧</h2>
+    <table id="mealTable">
+        <thead>
+            <tr>
+                <th class="sortable" onclick="sortTableByDate()">日付</th>
+                <th>種類</th>
+                <th>昼食/夜食</th>
+                <th>食べたもの</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <!-- 回数表示 -->
+    <div id="counts">
+        <div class="count-card">
+            <h3>自炊</h3>
+            <span id="selfCookCount">0</span> 回
+        </div>
+        <div class="count-card">
+            <h3>外食</h3>
+            <span id="dineOutCount">0</span> 回
+        </div>
+        <div class="count-card">
+            <h3>学食</h3>
+            <span id="schoolCount">0</span> 回
+        </div>
+    </div>
+
+    <!-- ランキング表示 -->
+    <div id="ranking">
+        <h2>食べたものランキング</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>順位</th>
+                    <th>食べたもの</th>
+                    <th>回数</th>
+                </tr>
+            </thead>
+            <tbody id="foodRanking"></tbody>
+        </table>
+    </div>
+
+    <!-- カレンダー表示リンク -->
+    <button onclick="goToCalendar()">カレンダーで表示</button>
+
+    <script>
+        let meals = JSON.parse(localStorage.getItem('meals')) || [];
+        let editIndex = null;
+        let sortAsc = true; // ソートの状態を保持（昇順: true, 降順: false）
+
+        // ページ読み込み時の初期日付設定
+        window.onload = function() {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById("date").value = now.toISOString().split('T')[0];
+        };
+
+        function addOrUpdateMeal() {
+            const date = document.getElementById("date").value;
+            const mealType = document.getElementById("mealType").value;
+            const mealTime = document.getElementById("mealTime").value;
+            const food = document.getElementById("food").value;
+
+            if (date && mealType && mealTime && food) {
+                if (editIndex === null) {
+                    meals.push({ date, mealType, mealTime, food });
+                } else {
+                    meals[editIndex] = { date, mealType, mealTime, food };
+                    editIndex = null;
+                    document.getElementById("submitBtn").innerText = "追加";
+                }
+                localStorage.setItem('meals', JSON.stringify(meals));
+                renderTable();
+                renderCounts();
+                renderRanking();
+                document.getElementById("mealForm").reset();
+                const now = new Date();
+                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                document.getElementById("date").value = now.toISOString().split('T')[0];
+            } else {
+                alert("すべての項目を入力してください！");
+            }
+        }
+
+        function renderTable(filteredMeals = meals) {
+            const tableBody = document.querySelector("#mealTable tbody");
+            tableBody.innerHTML = "";
+            filteredMeals.forEach((meal, index) => {
+                const row = `<tr>
+                                <td>${meal.date}</td>
+                                <td>${meal.mealType}</td>
+                                <td>${meal.mealTime}</td>
+                                <td>${meal.food}</td>
+                                <td>
+                                    <button class="edit-btn" onclick="editMeal(${index})">編集</button>
+                                    <button class="delete-btn" onclick="confirmDelete(${index})">削除</button>
+                                </td>
+                             </tr>`;
+                tableBody.insertAdjacentHTML("beforeend", row);
+            });
+        }
+
+        function renderCounts() {
+            const selfCookCount = meals.filter(meal => meal.mealType === "自炊").length;
+            const dineOutCount = meals.filter(meal => meal.mealType === "外食").length;
+            const schoolCount = meals.filter(meal => meal.mealType === "学食").length;
+
+            document.getElementById("selfCookCount").innerText = selfCookCount;
+            document.getElementById("dineOutCount").innerText = dineOutCount;
+            document.getElementById("schoolCount").innerText = schoolCount;
+        }
+
+        function renderRanking() {
+            const rankingBody = document.getElementById("foodRanking");
+            rankingBody.innerHTML = "";
+
+            const foodCounts = meals.reduce((acc, meal) => {
+                acc[meal.food] = (acc[meal.food] || 0) + 1;
+                return acc;
+            }, {});
+
+            const sortedFoods = Object.entries(foodCounts).sort((a, b) => b[1] - a[1]);
+
+            sortedFoods.forEach(([food, count], index) => {
+                const row = `<tr>
+                                <td>${index + 1} 位</td>
+                                <td>${food}</td>
+                                <td>${count} 回</td>
+                             </tr>`;
+                rankingBody.insertAdjacentHTML("beforeend", row);
+            });
+        }
+
+        function sortTableByDate() {
+            meals.sort((a, b) => {
+                if (sortAsc) {
+                    return new Date(a.date) - new Date(b.date);
+                } else {
+                    return new Date(b.date) - new Date(a.date);
+                }
+            });
+            sortAsc = !sortAsc; // ソート順を反転
+            renderTable();
+        }
+
+        function searchMeals() {
+            const searchQuery = document.getElementById("search").value.toLowerCase();
+            const filteredMeals = meals.filter(meal =>
+                meal.date.includes(searchQuery) ||
+                meal.mealType.toLowerCase().includes(searchQuery) ||
+                meal.mealTime.toLowerCase().includes(searchQuery) ||
+                meal.food.toLowerCase().includes(searchQuery)
+            );
+            renderTable(filteredMeals);
+        }
+
+        function editMeal(index) {
+            const meal = meals[index];
+            document.getElementById("date").value = meal.date;
+            document.getElementById("mealType").value = meal.mealType;
+            document.getElementById("mealTime").value = meal.mealTime;
+            document.getElementById("food").value = meal.food;
+
+            editIndex = index;
+            document.getElementById("submitBtn").innerText = "保存";
+        }
+
+        function confirmDelete(index) {
+            const meal = meals[index];
+            const confirmMessage = `本当に削除してよろしいですか？\n\n日付: ${meal.date}\n種類: ${meal.mealType}\n昼食/夜食: ${meal.mealTime}\n食べたもの: ${meal.food}`;
+
+            if (confirm(confirmMessage)) {
+                deleteMeal(index);
+            }
+        }
+
+        function deleteMeal(index) {
+            meals.splice(index, 1);
+            localStorage.setItem('meals', JSON.stringify(meals));
+            renderTable();
+            renderCounts();
+            renderRanking();
+        }
+
+        function goToCalendar() {
+            const encodedMeals = encodeURIComponent(JSON.stringify(meals));
+            window.location.href = `calendar.html?data=${encodedMeals}`;
+        }
+
+        renderTable();
+        renderCounts();
+        renderRanking();
+    </script>
+</body>
+</html>
+
+
